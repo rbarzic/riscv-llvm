@@ -42,7 +42,9 @@ public:
     FP64Reg,
     PairFP64Reg,
     PairFP128Reg,
-    FP128Reg
+    FP128Reg,
+
+    GRVECReg // Simd vector
   };
 
 private:
@@ -209,6 +211,9 @@ public:
   bool isPairFP64() const { return isReg(PairFP64Reg); }
   bool isPairFP128() const { return isReg(PairFP128Reg); }
   bool isFP128() const { return isReg(FP128Reg); }
+
+  bool isGRVEC() const { return isReg(GRVECReg); }
+
   bool isU4Imm() const { return isImm(0, 15); }
   bool isU12Imm() const { return isImm(0, 4096); }
   bool isS12Imm() const { return isImm(-2048, 2047); }
@@ -227,24 +232,24 @@ static const unsigned GR32Regs[] = {
   RISCV::zero, RISCV::ra  , RISCV::fp  ,
   RISCV::s0  , RISCV::s1  , RISCV::s2  , RISCV::s3  , RISCV::s4,
   RISCV::s5  , RISCV::s6  , RISCV::s7  , RISCV::s8  , RISCV::s9,
-  RISCV::s10 , RISCV::s11 , 
+  RISCV::s10 , RISCV::s11 ,
   RISCV::sp  , RISCV::tp  , RISCV::v0  , RISCV::v1,
   RISCV::a0  , RISCV::a1  , RISCV::a2  , RISCV::a3  , RISCV::a4,
   RISCV::a5  , RISCV::a6  , RISCV::a7  ,
-  RISCV::t0  , RISCV::t1  , RISCV::t2  , RISCV::t3  , RISCV::t4 , 
-  RISCV::gp 
+  RISCV::t0  , RISCV::t1  , RISCV::t2  , RISCV::t3  , RISCV::t4 ,
+  RISCV::gp
 };
 
 static const unsigned GR64Regs[] = {
   RISCV::zero_64, RISCV::ra_64  , RISCV::fp_64  ,
   RISCV::s0_64  , RISCV::s1_64  , RISCV::s2_64  , RISCV::s3_64  , RISCV::s4_64 ,
   RISCV::s5_64  , RISCV::s6_64  , RISCV::s7_64  , RISCV::s8_64  , RISCV::s9_64 ,
-  RISCV::s10_64 , RISCV::s11_64 , 
+  RISCV::s10_64 , RISCV::s11_64 ,
   RISCV::sp_64  , RISCV::tp_64  , RISCV::v0_64  , RISCV::v1_64  ,
   RISCV::a0_64  , RISCV::a1_64  , RISCV::a2_64  , RISCV::a3_64  , RISCV::a4_64 ,
   RISCV::a5_64  , RISCV::a6_64  , RISCV::a7_64  ,
-  RISCV::t0_64  , RISCV::t1_64  , RISCV::t2_64  , RISCV::t3_64  , RISCV::t4_64 , 
-  RISCV::gp_64 
+  RISCV::t0_64  , RISCV::t1_64  , RISCV::t2_64  , RISCV::t3_64  , RISCV::t4_64 ,
+  RISCV::gp_64
 };
 
 static const unsigned PairGR64Regs[] = {
@@ -265,7 +270,7 @@ static const unsigned FP32Regs[] = {
   RISCV::fv0  , RISCV::fv1  ,
   RISCV::fa0  , RISCV::fa1  , RISCV::fa2  , RISCV::fa3  , RISCV::fa4,
   RISCV::fa5  , RISCV::fa6  , RISCV::fa7  ,
-  RISCV::ft0  , RISCV::ft1  , RISCV::ft2  , RISCV::ft3  , RISCV::ft4  , RISCV::ft5 
+  RISCV::ft0  , RISCV::ft1  , RISCV::ft2  , RISCV::ft3  , RISCV::ft4  , RISCV::ft5
 };
 
 static const unsigned FP64Regs[] = {
@@ -276,8 +281,14 @@ static const unsigned FP64Regs[] = {
   RISCV::fv0_64  , RISCV::fv1_64  ,
   RISCV::fa0_64  , RISCV::fa1_64  , RISCV::fa2_64  , RISCV::fa3_64  , RISCV::fa4_64  ,
   RISCV::fa5_64  , RISCV::fa6_64  , RISCV::fa7_64  ,
-  RISCV::ft0_64  , RISCV::ft1_64  , RISCV::ft2_64  , RISCV::ft3_64  , RISCV::ft4_64  , RISCV::ft5_64 
+  RISCV::ft0_64  , RISCV::ft1_64  , RISCV::ft2_64  , RISCV::ft3_64  , RISCV::ft4_64  , RISCV::ft5_64
 };
+
+static const unsigned GRVECReg[] = {
+        RISCV::vec0  , RISCV::vec1  , RISCV::vec2  , RISCV::vec3  ,
+        RISCV::vec4  , RISCV::vec5  , RISCV::vec6  , RISCV::vec7
+    };
+
 
 static const unsigned PairFP64Regs[] = {
   RISCV::fa0_p64, RISCV::fa1_p64, RISCV::fa2_p64, RISCV::fa3_p64
@@ -291,7 +302,7 @@ static const unsigned PCRRegs[] = {
   RISCV::status, RISCV::epc, RISCV::evec, RISCV::ptbr, RISCV::asid,
   RISCV::count, RISCV::compare, RISCV::sup0, RISCV::sup1, RISCV::tohost, RISCV::fromhost,
   //read only
-  RISCV::badvaddr, RISCV::cause, RISCV::hartid, RISCV::impl, 
+  RISCV::badvaddr, RISCV::cause, RISCV::hartid, RISCV::impl,
   //write only
   RISCV::fatc,  RISCV::send_ipi, RISCV::clear_ipi
 };
@@ -388,6 +399,12 @@ public:
     return parseRegister(Operands, 'f', FP64Regs, RISCVOperand::FP64Reg);
   }
 
+   OperandMatchResultTy
+    parseGRVEC(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
+        return parseRegister(Operands, 'v', GRVECReg, RISCVOperand::GRVECReg);
+    }
+
+
   OperandMatchResultTy
   parsePairFP64(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
     return parseRegister(Operands, 'f', PairFP64Regs, RISCVOperand::PairFP64Reg);
@@ -397,6 +414,8 @@ public:
   parsePairFP128(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
     return parseRegister(Operands, 'f', PairFP128Regs, RISCVOperand::PairFP128Reg);
   }
+
+
 
   OperandMatchResultTy
   parsePCRReg(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {

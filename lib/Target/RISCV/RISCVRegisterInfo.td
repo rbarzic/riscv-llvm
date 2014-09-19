@@ -424,3 +424,27 @@ def PC : RISCVReg<"pc">;
 defm PCReg : RISCVRegClass<"PCReg", i32, 32,(add PC), 0>;
 //FP status register
 def FCSR : RISCVReg<"fcsr">;
+
+
+
+// SIMD vector
+// Vector registers (8 x 16-bit)
+//RV32 general purpose regs
+class GPRVEC<bits<16> num, string n> : RISCVReg<n> {
+  let HWEncoding = num;
+}
+
+def vec0 : GPRVEC<0,"vec0">, DwarfRegNum<[0]>;
+def vec1 : GPRVEC<1,"vec1">, DwarfRegNum<[1]>;
+def vec2 : GPRVEC<2,"vec2">, DwarfRegNum<[2]>;
+def vec3 : GPRVEC<3,"vec3">, DwarfRegNum<[3]>;
+def vec4 : GPRVEC<4,"vec4">, DwarfRegNum<[4]>;
+def vec5 : GPRVEC<5,"vec5">, DwarfRegNum<[5]>;
+def vec6 : GPRVEC<6,"vec6">, DwarfRegNum<[6]>;
+def vec7 : GPRVEC<7,"vec7">, DwarfRegNum<[7]>;
+
+defm GRVEC   : RISCVRegClass<"GRVEC", v8i16, 128 /* size*/ , (add
+  vec0,vec1,vec2,vec3,
+  vec4,vec5,vec6,vec7
+  ), 1 /* Allocatable */>;
+
