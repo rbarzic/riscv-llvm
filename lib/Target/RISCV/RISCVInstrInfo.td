@@ -95,6 +95,11 @@ defm : SetlePats<GR32, SLT, SLTU>;
 defm : SetgtPats<GR32, SLT, SLTU>;
 defm : SetgePats<GR32, SLT, SLTU>;
 
+// Vector instructions
+
+def V_ADD : InstR<"v_add" , 0b0110011, 0b0000000000, add   , GRVEC, GRVEC>, Requires<[IsRV32]>;
+
+
 //Unconditional Jumps
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
   def J  : InstJ<0b1100111, (outs), (ins jumptarget:$target), "j\t$target", 
@@ -197,6 +202,8 @@ def : Pat<(select (i32 (seteq GR32:$lhs, 0)), GR32:$T, GR32:$F),
 //Load/Store Instructions
 let mayLoad = 1 in {
   def LW : InstLoad <"lw" , 0b0000011, 0b010, load, GR32, mem>, Requires<[IsRV32]>; 
+  def V_LW : InstLoad <"v_lw" , 0b0000011, 0b010, load, GRVEC, mem>, Requires<[IsRV32]>; 
+
   def LH : InstLoad <"lh" , 0b0000011, 0b001, sextloadi16, GR32, mem>, Requires<[IsRV32]>; 
   def LHU: InstLoad <"lhu", 0b0000011, 0b101, zextloadi16, GR32, mem>, Requires<[IsRV32]>; 
   def LB : InstLoad <"lb" , 0b0000011, 0b000, sextloadi8, GR32, mem>, Requires<[IsRV32]>; 
@@ -209,6 +216,8 @@ def : Pat<(i32 (extloadi16 addr:$addr)), (LHU addr:$addr)>, Requires<[IsRV32]>;
 
 let mayStore = 1 in {
   def SW : InstStore<"sw" , 0b0100011, 0b010, store        , GR32, mem>, Requires<[IsRV32]>;
+  def V_SW : InstStore<"v_sw" , 0b0100011, 0b010, store        , GRVEC, mem>, Requires<[IsRV32]>;
+
   def SH : InstStore<"sh" , 0b0100011, 0b001, truncstorei16, GR32, mem>, Requires<[IsRV32]>; 
   def SB : InstStore<"sb" , 0b0100011, 0b000, truncstorei8 , GR32, mem>, Requires<[IsRV32]>; 
 }

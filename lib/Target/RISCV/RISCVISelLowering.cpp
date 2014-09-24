@@ -48,14 +48,24 @@ static const uint16_t FPDRegs[8] = {
   RISCV::fa4_64, RISCV::fa5_64, RISCV::fa6_64, RISCV::fa7_64
 };
 
+
+static const uint16_t RV32VecRegs[8] = {
+    RISCV::vec0, RISCV::vec1, RISCV::vec2, RISCV::vec3,
+    RISCV::vec4, RISCV::vec5, RISCV::vec6, RISCV::vec7
+};
+
+
 RISCVTargetLowering::RISCVTargetLowering(RISCVTargetMachine &tm)
   : TargetLowering(tm, new TargetLoweringObjectFileELF()),
-    Subtarget(*tm.getSubtargetImpl()), TM(tm), 
+    Subtarget(*tm.getSubtargetImpl()), TM(tm),
     IsRV32(Subtarget.isRV32()) {
   MVT PtrVT = getPointerTy();
 
   // Set up the register classes.
   addRegisterClass(MVT::i32,  &RISCV::GR32BitRegClass);
+
+  addRegisterClass(MVT::v8i16,  &RISCV::GRVECBitRegClass);
+
   if(Subtarget.isRV64())
     addRegisterClass(MVT::i64,  &RISCV::GR64BitRegClass);
   if(Subtarget.hasD()){
@@ -180,6 +190,11 @@ RISCVTargetLowering::RISCVTargetLowering(RISCVTargetMachine &tm)
 
     }
   }
+
+  // Vector operation
+  setOperationAction(ISD::ADDE, MVT::v8i16, Legal);
+  setOperationAction(ISD::ADDC, MVT::v8i16, Legal);
+
 
   //to have the best chance and doing something good with fences custom lower them
   setOperationAction(ISD::ATOMIC_FENCE,      MVT::Other, Custom);
@@ -719,7 +734,7 @@ analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Args,
     if (IsVarArg && !Args[I].IsFixed)
       if(ArgVT.isFloatingPoint()) //Bitconvert floats
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::BCvt, ArgFlags, CCInfo);
-      else 
+      else
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, CCInfo);
     else {
       MVT RegVT = getRegVT(ArgVT, FuncArgs[Args[I].OrigArgIndex].Ty, CallNode,
@@ -760,7 +775,7 @@ analyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Args,
     }
 
     if(ArgFlags.isSRet()) {
-      
+
     }
 
     MVT RegVT = getRegVT(ArgVT, FuncArg->getType(), 0, IsSoftFloat);
@@ -972,7 +987,7 @@ const uint16_t *RISCVTargetLowering::RISCVCC::intArgRegs() const {
 }
 
 const uint16_t *RISCVTargetLowering::RISCVCC::fpArgRegs() const {
-  return Subtarget.hasD() ? FPDRegs : 
+  return Subtarget.hasD() ? FPDRegs :
          Subtarget.hasF() ? FPFRegs :
          intArgRegs();
 }
@@ -990,22 +1005,22 @@ void RISCVTargetLowering::RISCVCC::allocateRegs(ByValArgInfo &ByVal,
                                               unsigned ByValSize,
                                               unsigned Align,
                                               MVT ValVT) {
-  unsigned RegSize = regSize(); 
+  unsigned RegSize = regSize();
   if(ValVT.isInteger()) {
     unsigned NumIntArgRegs = numIntArgRegs();
     const uint16_t *IntArgRegs = intArgRegs();//, *ShadowRegs = shadowRegs();
     assert(!(ByValSize % RegSize) && !(Align % RegSize) &&
            "Byval argument's size and alignment should be a multiple of"
            "RegSize.");
-  
+
     ByVal.FirstIdx = CCInfo.getFirstUnallocated(IntArgRegs, NumIntArgRegs);
-  
+
     // If Align > RegSize, the first arg register must be even.
     if ((Align > RegSize) && (ByVal.FirstIdx % 2)) {
       CCInfo.AllocateReg(IntArgRegs[ByVal.FirstIdx]);//, ShadowRegs[ByVal.FirstIdx]);
       ++ByVal.FirstIdx;
     }
-  
+
     // Mark the registers allocated.
     for (unsigned I = ByVal.FirstIdx; ByValSize && (I < NumIntArgRegs);
          ByValSize -= RegSize, ++I, ++ByVal.NumRegs)
@@ -1017,15 +1032,15 @@ void RISCVTargetLowering::RISCVCC::allocateRegs(ByValArgInfo &ByVal,
     assert(!(ByValSize % RegSize) && !(Align % RegSize) &&
            "Byval argument's size and alignment should be a multiple of"
            "RegSize.");
-  
+
     ByVal.FirstIdx = CCInfo.getFirstUnallocated(FPArgRegs, NumFPArgRegs);
-  
+
     // If Align > RegSize, the first arg register must be even.
     if ((Align > RegSize) && (ByVal.FirstIdx % 2)) {
       CCInfo.AllocateReg(FPArgRegs[ByVal.FirstIdx]);//, ShadowRegs[ByVal.FirstIdx]);
       ++ByVal.FirstIdx;
     }
-  
+
     // Mark the registers allocated.
     for (unsigned I = ByVal.FirstIdx; ByValSize && (I < NumFPArgRegs);
          ByValSize -= RegSize, ++I, ++ByVal.NumRegs)
@@ -1053,7 +1068,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(),
                  getTargetMachine(), ArgLocs, *DAG.getContext());
-  
+
   RISCVCC RISCVCCInfo(CallConv, IsRV32, CCInfo, Subtarget);
   Function::const_arg_iterator FuncArg =
     DAG.getMachineFunction().getFunction()->arg_begin();
@@ -1104,7 +1119,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
             RC = &RISCV::FP64BitRegClass;
           else if(Subtarget.hasF())
             RC = &RISCV::FP32BitRegClass;
-          else 
+          else
             RC = &RISCV::GR32BitRegClass;
       } else if (RegVT == MVT::f64) {
           if(Subtarget.hasD())
@@ -1452,7 +1467,7 @@ SDValue RISCVTargetLowering::lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) cons
   //TODO: riscv-gcc can handle this, by navigating through the stack, we should be able to do this too
   assert((cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue() == 0) &&
     "Return address can be determined only for current frame.");
-      
+
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MVT VT = Op.getSimpleValueType();
@@ -1501,7 +1516,7 @@ SDValue RISCVTargetLowering::lowerGlobalTLSAddress(GlobalAddressSDNode *GA,
                                                RISCVII::MO_TPREL_LO);
     SDValue Hi = DAG.getNode(RISCVISD::Hi, DL, PtrVT, TGAHi);
     SDValue Lo = DAG.getNode(RISCVISD::Lo, DL, PtrVT, TGALo);
-    Offset = DAG.getNode(ISD::ADD, DL, PtrVT, Hi, Lo); 
+    Offset = DAG.getNode(ISD::ADD, DL, PtrVT, Hi, Lo);
   } else {
     llvm_unreachable("only local-exec TLS mode supported");
   }
@@ -1509,7 +1524,7 @@ SDValue RISCVTargetLowering::lowerGlobalTLSAddress(GlobalAddressSDNode *GA,
   //SDValue ThreadPointer = DAG.getNode(MipsISD::ThreadPointer, DL, PtrVT);
   SDValue ThreadPointer = DAG.getRegister(
       Subtarget.isRV64() ? RISCV::tp_64 : RISCV::tp, PtrVT);
-  
+
   return DAG.getNode(ISD::ADD, DL, PtrVT, ThreadPointer, Offset);
 
 
@@ -1599,7 +1614,7 @@ SDValue RISCVTargetLowering::lowerVAARG(SDValue Op, SelectionDAG &DAG) const{
 
 SDValue RISCVTargetLowering::lowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG) const {
   DebugLoc DL = Op.getDebugLoc();
-  
+
   unsigned PI,PO,PR,PW,SI,SO,SR,SW;
   switch(Op.getConstantOperandVal(1)) {
     case NotAtomic:
@@ -1613,7 +1628,7 @@ SDValue RISCVTargetLowering::lowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG) co
       PO = 1 << 2;
       PR = 1 << 1;
       PW = 1 << 0;
-  } 
+  }
 
   switch(Op.getConstantOperandVal(2)) {
     case SingleThread:
@@ -1786,7 +1801,7 @@ emitSelectCC(MachineInstr *MI, MachineBasicBlock *BB) const {
             TII->get(RISCV::PHI), VReg)
       .addReg(MI->getOperand(3).getReg()).addMBB(copy0MBB)
       .addReg(MI->getOperand(2).getReg()).addMBB(thisMBB);
-  }else if(MI->getOperand(2).getReg() == RISCV::zero || 
+  }else if(MI->getOperand(2).getReg() == RISCV::zero ||
            MI->getOperand(2).getReg() == RISCV::zero_64){
     //Create a virtual register for zero and make a copy into it
     const TargetRegisterClass *RC = MI->getOperand(2).getReg() == RISCV::zero_64 ? &RISCV::GR64BitRegClass : &RISCV::GR32BitRegClass;

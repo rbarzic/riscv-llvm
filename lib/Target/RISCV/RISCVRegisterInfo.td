@@ -429,7 +429,7 @@ def FCSR : RISCVReg<"fcsr">;
 
 // SIMD vector
 // Vector registers (8 x 16-bit)
-//RV32 general purpose regs
+
 class GPRVEC<bits<16> num, string n> : RISCVReg<n> {
   let HWEncoding = num;
 }
