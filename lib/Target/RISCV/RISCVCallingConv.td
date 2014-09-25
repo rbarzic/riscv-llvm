@@ -30,7 +30,10 @@ def RetCC_RISCV32 : CallingConv<[
   CCIfType<[f64], CCIfSubtarget<"hasD()", CCAssignToReg<[fv0_64, fv1_64]>>>,
   CCIfType<[f64], CCIfSubtarget<"hasF()", CCAssignToReg<[fv0_p64]>>>,
 
-  CCIfType<[f32], CCAssignToReg<[v0, v1]>>
+  CCIfType<[f32], CCAssignToReg<[v0, v1]>>,
+
+  CCIfType<[v8i16], CCAssignToReg<[vec0, vec1]>>
+
   //Falling off the end of allocation here leads to SRet demotion
 ]>;
 
@@ -58,7 +61,10 @@ def CC_RISCV32 : CallingConv<[
         [ a0,     a1,     a2,     a3,     a4,     a5,     a6,     a7   ]>>>,
 
   // Other arguments are passed in 8-byte-aligned 8-byte stack slots.
-  CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 8>>
+  CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 8>>,
+
+  CCIfType<[v8i16],  CCAssignToReg<[vec2,   vec3,  vec4,  vec5]>>
+
 ]>;
 //Var args are all passed in integer regs
 def CC_RISCV32_VAR : CallingConv<[
