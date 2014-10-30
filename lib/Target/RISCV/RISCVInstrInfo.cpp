@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "riscv-instr-info"
+
 #include "RISCVInstrInfo.h"
 #include "RISCVInstrBuilder.h"
 #include "RISCVTargetMachine.h"
@@ -19,6 +21,10 @@
 #define GET_INSTRINFO_CTOR
 #define GET_INSTRMAP_INFO
 #include "RISCVGenInstrInfo.inc"
+
+#include "llvm/Support/Debug.h"
+
+
 
 using namespace llvm;
 
@@ -470,7 +476,7 @@ RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 				      const TargetRegisterClass *RC,
 				      const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
-
+  DEBUG(dbgs() << "-D- In RISCVInstrInfo::storeRegToStackSlot ....\n");
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
@@ -485,7 +491,9 @@ RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 				       unsigned DestReg, int FrameIdx,
 				       const TargetRegisterClass *RC,
 				       const TargetRegisterInfo *TRI) const {
-  DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
+
+    DEBUG(dbgs() << "-D- In RISCVInstrInfo::loadRegFromStackSlot ....\n");
+    DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
@@ -658,7 +666,7 @@ void RISCVInstrInfo::loadImmediate(MachineBasicBlock &MBB,
   const TargetRegisterClass *RC = STI.isRV64() ?
     &RISCV::GR64BitRegClass : &RISCV::GR32BitRegClass;
   unsigned ZERO = STI.isRV64() ? RISCV::zero_64 : RISCV::zero;
-
+  DEBUG(dbgs() << "-D- In void RISCVInstrInfo::loadImmediate....\n");
   //create virtual reg to store immediate
   *Reg = RegInfo.createVirtualRegister(RC);
   if (isInt<12>(Value)){

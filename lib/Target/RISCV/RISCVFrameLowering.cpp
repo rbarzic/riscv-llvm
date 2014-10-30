@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "riscv-frame-lowering"
+
 #include "RISCVFrameLowering.h"
 #include "RISCVCallingConv.h"
 #include "RISCVInstrBuilder.h"
@@ -16,6 +18,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/Function.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -97,6 +100,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF) const {
 
   // First, compute final stack size.
   uint64_t StackSize = MFI->getStackSize();
+
+  DEBUG(dbgs() << "-D- In RISCVFrameLowering::emitPrologue...\n");
 
   // No need to allocate space on the stack.
   if (StackSize == 0 && !MFI->adjustsStack()) return;
