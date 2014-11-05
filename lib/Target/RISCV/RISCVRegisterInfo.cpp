@@ -188,6 +188,8 @@ RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                << "ObjectSize  : " << objectSize << "\n")
       ;
 
+  MF.getFrameInfo()->print(MF,dbgs());
+  
   eliminateFI(MI, FIOperandNum, FrameIndex, stackSize, spOffset);
 }
 
