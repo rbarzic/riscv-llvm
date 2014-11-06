@@ -23,6 +23,8 @@
 #include "RISCVGenInstrInfo.inc"
 
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 
 
 
@@ -476,7 +478,8 @@ RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 				      const TargetRegisterClass *RC,
 				      const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
-  DEBUG(dbgs() << "-D- In RISCVInstrInfo::storeRegToStackSlot ....\n");
+  DEBUG(dbgs() << "-D- In RISCVInstrInfo::storeRegToStackSlot - FrameIdx = " << FrameIdx << " SrcReg=" << SrcReg << "\n");
+  DEBUG(dbgs() << "       RegisterClass  " << RC->getName() << "\n");
   // Callers may expect a single instruction, so keep 128-bit moves
   // together for now and lower them after register allocation.
   unsigned LoadOpcode, StoreOpcode;
@@ -492,7 +495,10 @@ RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 				       const TargetRegisterClass *RC,
 				       const TargetRegisterInfo *TRI) const {
 
-    DEBUG(dbgs() << "-D- In RISCVInstrInfo::loadRegFromStackSlot ....\n");
+    
+    DEBUG(dbgs() << "-D- In RISCVInstrInfo::loadRegFromStackSlot - FrameIdx = " << FrameIdx << " DestReg=" << DestReg << "\n");
+    DEBUG(dbgs() << "       RegisterClass  " << RC->getName() << "\n");
+  
     DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   // Callers may expect a single instruction, so keep 128-bit moves
@@ -640,6 +646,10 @@ void RISCVInstrInfo::getLoadStoreOpcodes(const TargetRegisterClass *RC,
   } else if (RC == &RISCV::FP64BitRegClass) {
     LoadOpcode = STI.isRV64() ? RISCV::FLD64 : RISCV::FLD;
     StoreOpcode = STI.isRV64() ? RISCV::FSD64 : RISCV::FSD;
+  } else if (RC == &RISCV::GRVECBitRegClass) {
+      LoadOpcode = RISCV::V_LW;
+      StoreOpcode = RISCV::V_SW;
+    
   } else
     llvm_unreachable("Unsupported regclass to load or store");
 }
