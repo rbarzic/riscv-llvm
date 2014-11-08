@@ -443,8 +443,22 @@ def vec5 : GPRVEC<5,"vec5">, DwarfRegNum<[5]>;
 def vec6 : GPRVEC<6,"vec6">, DwarfRegNum<[6]>;
 def vec7 : GPRVEC<7,"vec7">, DwarfRegNum<[7]>;
 
+// Added to check argument passing (to avoid spilling)
+def vec8 : GPRVEC<8,"vec8">, DwarfRegNum<[8]>;
+def vec9 : GPRVEC<9,"vec9">, DwarfRegNum<[9]>;
+def vec10 : GPRVEC<10,"vec10">, DwarfRegNum<[10]>;
+def vec11 : GPRVEC<11,"vec11">, DwarfRegNum<[11]>;
+def vec12 : GPRVEC<12,"vec12">, DwarfRegNum<[12]>;
+def vec13 : GPRVEC<13,"vec13">, DwarfRegNum<[13]>;
+def vec14 : GPRVEC<14,"vec14">, DwarfRegNum<[14]>;
+def vec15 : GPRVEC<15,"vec15">, DwarfRegNum<[15]>;
+
+
+
 defm GRVEC   : RISCVRegClass<"GRVEC", v8i16, 128 /* size*/ , (add
   vec0,vec1,vec2,vec3,
-  vec4,vec5,vec6,vec7
+  vec4,vec5,vec6,vec7,
+  vec8,vec9,vec10,vec11,
+  vec12,vec13,vec14,vec15
   ), 1 /* Allocatable */>;
 
