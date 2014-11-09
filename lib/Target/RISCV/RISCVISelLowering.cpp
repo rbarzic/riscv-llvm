@@ -715,29 +715,34 @@ void RISCVTargetLowering::RISCVCC::
 analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Args,
                     bool IsVarArg, bool IsSoftFloat, const SDNode *CallNode,
                     std::vector<ArgListEntry> &FuncArgs) {
-    DEBUG(errs() << "-D- In .RISCVTargetLowering::RISCVCC::analyzeCallOperands...\n");    
+    DEBUG(errs() << "-D- In .RISCVTargetLowering::RISCVCC::analyzeCallOperands...\n");
+    DEBUG(errs() << "-D- IsVarArg  : " <<  IsVarArg << "\n");
+    
   assert((CallConv != CallingConv::Fast || !IsVarArg) &&
          "CallingConv::Fast shouldn't be used for vararg functions.");
 
   unsigned NumOpnds = Args.size();
   llvm::CCAssignFn *FixedFn = fixedArgFn(), *VarFn = varArgFn();
-
+  DEBUG(errs() << "-D- NumOpnds  = " <<  NumOpnds  << "\n");    
   for (unsigned I = 0; I != NumOpnds; ++I) {
     MVT ArgVT = Args[I].VT;
     ISD::ArgFlagsTy ArgFlags = Args[I].Flags;
     bool R;
 
     if (ArgFlags.isByVal()) {
+      DEBUG(errs() << "-D-    I = " <<  I  << " : ByVal\n");       
       handleByValArg(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags);
       continue;
     }
 
-    if (IsVarArg && !Args[I].IsFixed)
+    if (IsVarArg && !Args[I].IsFixed) {
+        DEBUG(errs() << "-D-   IsVarArg && !Args[I].IsFixed : True \n");         
       if(ArgVT.isFloatingPoint()) //Bitconvert floats
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::BCvt, ArgFlags, CCInfo);
       else
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, CCInfo);
-    else {
+    } else {
+        DEBUG(errs() << "-D-   IsVarArg && !Args[I].IsFixed : False \n");           
       MVT RegVT = getRegVT(ArgVT, FuncArgs[Args[I].OrigArgIndex].Ty, CallNode,
                            IsSoftFloat);
       R = FixedFn(I, ArgVT, RegVT, CCValAssign::Full, ArgFlags, CCInfo);
@@ -881,6 +886,11 @@ passByValArg(SDValue Chain, DebugLoc DL,
   unsigned Offset = 0; // Offset in # of bytes from the beginning of struct.
   unsigned RegSize = CC.regSize();
   unsigned Alignment = std::min(Flags.getByValAlign(), RegSize);
+
+
+  DEBUG(errs() << "-D- In RISCVTargetLowering::passByValArg ....\n"); 
+  DEBUG(errs() << "-D-      NumRegs " << ByVal.NumRegs  << "\n"); 
+  
   EVT PtrTy = getPointerTy(), RegTy = MVT::getIntegerVT(RegSize * 8);
 
   if (ByVal.NumRegs) {
@@ -890,6 +900,7 @@ passByValArg(SDValue Chain, DebugLoc DL,
 
     // Copy words to registers.
     for (; I < ByVal.NumRegs - LeftoverBytes; ++I, Offset += RegSize) {
+        DEBUG(errs() << "-D-           Iteration =  " << I << "\n");   
       SDValue LoadPtr = DAG.getNode(ISD::ADD, DL, PtrTy, Arg,
                                     DAG.getConstant(Offset, PtrTy));
       SDValue LoadVal = DAG.getLoad(RegTy, DL, Chain, LoadPtr,
@@ -981,6 +992,8 @@ RISCVTargetLowering::RISCVCC::handleByValArg(unsigned ValNo, MVT ValVT,
   unsigned Align = std::min(std::max(ArgFlags.getByValAlign(), RegSize),
                             RegSize * 2);
 
+  DEBUG(errs() << "-D-          RegSize = " << RegSize << "\n"); 
+  
   if (useRegsForByval())
     allocateRegs(ByVal, ByValSize, Align, ValVT);
 
@@ -1292,7 +1305,7 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   // Get a count of how many bytes are to be pushed on the stack.
   unsigned NumBytes = ArgCCInfo.getNextStackOffset();
-  DEBUG(errs() << "-D-       NumBytes = "  << NumBytes <<"\n");
+  DEBUG(errs() << "-D-       NumBytes (to be pushed on stack) = "  << NumBytes <<"\n");
 
   // Mark the start of the call.
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getConstant(NumBytes, PtrVT, true));
@@ -1311,6 +1324,7 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
     // ByVal Arg.
     if (Flags.isByVal()) {
+      DEBUG(errs() << "-D- LowerCall : ByVal  \n");  
       assert(Flags.getByValSize() &&
              "ByVal args of size 0 should have been ignored by front-end.");
       assert(ByValArg != RISCVCCInfo.byval_end());
@@ -1326,10 +1340,15 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
       ArgValue = convertValVTToLocVT(DAG, DL, VA, ArgValue);
 
-    if (VA.isRegLoc())
+    if (VA.isRegLoc()) {
+        DEBUG(errs() << "-D- LowerCall : RegLoc  \n");
+        // Arguments that can be passed on register must be kept at
+        // RegsToPass vector  
       // Queue up the argument copies and emit them at the end.
       RegsToPass.push_back(std::make_pair(VA.getLocReg(), ArgValue));
-    else {
+      
+    } else {
+       DEBUG(errs() << "-D- LowerCall : MemLoc  \n");      
       assert(VA.isMemLoc() && "Argument not register or memory");
 
       // Work out the address of the stack slot.  Unpromoted ints and
@@ -1337,6 +1356,8 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
       if (!StackPtr.getNode())
         StackPtr = DAG.getCopyFromReg(Chain, DL, Subtarget.isRV64() ? RISCV::sp_64 : RISCV::sp, PtrVT);
       unsigned Offset = VA.getLocMemOffset();
+
+      DEBUG(errs() << "-D-    Offset : " << Offset << "\n");      
       SDValue Address = DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
                                     DAG.getIntPtrConstant(Offset));
 
