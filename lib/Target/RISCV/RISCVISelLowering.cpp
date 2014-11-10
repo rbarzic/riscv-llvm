@@ -965,7 +965,9 @@ passByValArg(SDValue Chain, DebugLoc DL,
   }
 
   // Copy remainder of byval arg to it with memcpy.
+  
   unsigned MemCpySize = ByValSize - Offset;
+  DEBUG(errs() << "-D-     MemCpySize  : " << MemCpySize << "\n"); 
   SDValue Src = DAG.getNode(ISD::ADD, DL, PtrTy, Arg,
                             DAG.getConstant(Offset, PtrTy));
   SDValue Dst = DAG.getNode(ISD::ADD, DL, PtrTy, StackPtr,

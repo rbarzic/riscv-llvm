@@ -20,10 +20,14 @@
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
+
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSelectionDAGInfo.h"
+#include "RISCVSelectionDAGInfo.h"
+
+
 
 namespace llvm {
 
@@ -32,7 +36,7 @@ class RISCVTargetMachine : public LLVMTargetMachine {
   const DataLayout        DL;
   RISCVInstrInfo        InstrInfo;
   RISCVTargetLowering   TLInfo;
-  TargetSelectionDAGInfo  TSInfo;
+  RISCVSelectionDAGInfo  TSInfo;
   RISCVFrameLowering    FrameLowering;
 
 public:
@@ -60,7 +64,7 @@ public:
   virtual const RISCVTargetLowering *getTargetLowering() const LLVM_OVERRIDE {
     return &TLInfo;
   }
-  virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const
+  virtual const RISCVSelectionDAGInfo *getSelectionDAGInfo() const
     LLVM_OVERRIDE {
     return &TSInfo;
   }

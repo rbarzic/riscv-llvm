@@ -3873,70 +3873,94 @@ SDValue SelectionDAG::getMemcpy(SDValue Chain, DebugLoc dl, SDValue Dst,
                                 unsigned Align, bool isVol, bool AlwaysInline,
                                 MachinePointerInfo DstPtrInfo,
                                 MachinePointerInfo SrcPtrInfo) {
-  assert(Align && "The SDAG layer expects explicit alignment and reserves 0");
+    assert(Align && "The SDAG layer expects explicit alignment and reserves 0");
+    errs() << "-D- In  SelectionDAG::getMemcpy....!!!\n";
+    // Check to see if we should lower the memcpy to loads and stores first.
+    // For cases within the target-specified limits, this is the best choice.
+    ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
 
-  // Check to see if we should lower the memcpy to loads and stores first.
-  // For cases within the target-specified limits, this is the best choice.
-  ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
-  if (ConstantSize) {
-    // Memcpy with size zero? Just return the original chain.
-    if (ConstantSize->isNullValue())
-      return Chain;
 
-    SDValue Result = getMemcpyLoadsAndStores(*this, dl, Chain, Dst, Src,
-                                             ConstantSize->getZExtValue(),Align,
-                                isVol, false, DstPtrInfo, SrcPtrInfo);
-    if (Result.getNode())
-      return Result;
-  }
+    MVT type_src  = Src.getSimpleValueType();
+    MVT type_dst = Dst.getSimpleValueType();
+  
+    if(type_src.SimpleTy == MVT::v8i16) {
+        errs() << "-D-        Source type is v8i16 ! \n";  
+    } else {
+        errs() << "-D-        Source type is :" << static_cast<int>(type_src.SimpleTy) << "\n";  
+      
+    }
+    if(type_dst.SimpleTy == MVT::v8i16) {
+        errs() << "-D-        Destination  type is v8i16 ! \n";  
+    } else {
+        errs() << "-D-        Destination  type is :" << static_cast<int>(type_dst.SimpleTy) << "\n";  
+    }
+  
 
-  // Then check to see if we should lower the memcpy with target-specific
-  // code. If the target chooses to do this, this is the next best.
-  SDValue Result =
-    TSI.EmitTargetCodeForMemcpy(*this, dl, Chain, Dst, Src, Size, Align,
-                                isVol, AlwaysInline,
-                                DstPtrInfo, SrcPtrInfo);
-  if (Result.getNode())
-    return Result;
 
-  // If we really need inline code and the target declined to provide it,
-  // use a (potentially long) sequence of loads and stores.
-  if (AlwaysInline) {
-    assert(ConstantSize && "AlwaysInline requires a constant size!");
-    return getMemcpyLoadsAndStores(*this, dl, Chain, Dst, Src,
-                                   ConstantSize->getZExtValue(), Align, isVol,
-                                   true, DstPtrInfo, SrcPtrInfo);
-  }
+  
+    if (ConstantSize) {
+        errs() << "-D-        ConstantSize... \n";  
+        // Memcpy with size zero? Just return the original chain.
+        if (ConstantSize->isNullValue())
+            return Chain;
 
-  // FIXME: If the memcpy is volatile (isVol), lowering it to a plain libc
-  // memcpy is not guaranteed to be safe. libc memcpys aren't required to
-  // respect volatile, so they may do things like read or write memory
-  // beyond the given memory regions. But fixing this isn't easy, and most
-  // people don't care.
+        SDValue Result = getMemcpyLoadsAndStores(*this, dl, Chain, Dst, Src,
+                                                 ConstantSize->getZExtValue(),Align,
+                                                 isVol, false, DstPtrInfo, SrcPtrInfo);
+        if (Result.getNode())
+            return Result;
+    }
 
-  // Emit a library call.
-  TargetLowering::ArgListTy Args;
-  TargetLowering::ArgListEntry Entry;
-  Entry.Ty = TLI.getDataLayout()->getIntPtrType(*getContext());
-  Entry.Node = Dst; Args.push_back(Entry);
-  Entry.Node = Src; Args.push_back(Entry);
-  Entry.Node = Size; Args.push_back(Entry);
-  // FIXME: pass in DebugLoc
-  TargetLowering::
-  CallLoweringInfo CLI(Chain, Type::getVoidTy(*getContext()),
-                    false, false, false, false, 0,
-                    TLI.getLibcallCallingConv(RTLIB::MEMCPY),
-                    /*isTailCall=*/false,
-                    /*doesNotReturn=*/false, /*isReturnValueUsed=*/false,
-                    getExternalSymbol(TLI.getLibcallName(RTLIB::MEMCPY),
-                                      TLI.getPointerTy()),
-                    Args, *this, dl);
-  std::pair<SDValue,SDValue> CallResult = TLI.LowerCallTo(CLI);
+    // Then check to see if we should lower the memcpy with target-specific
+    // code. If the target chooses to do this, this is the next best.
+    SDValue Result =
+        TSI.EmitTargetCodeForMemcpy(*this, dl, Chain, Dst, Src, Size, Align,
+                                    isVol, AlwaysInline,
+                                    DstPtrInfo, SrcPtrInfo);
+    if (Result.getNode()) {
+        errs() << "-D-       Get a result from  EmitTargetCodeForMemcpy\n";    
+        return Result;
+    }
 
-  return CallResult.second;
+    // If we really need inline code and the target declined to provide it,
+    // use a (potentially long) sequence of loads and stores.
+    if (AlwaysInline) {
+        assert(ConstantSize && "AlwaysInline requires a constant size!");
+        return getMemcpyLoadsAndStores(*this, dl, Chain, Dst, Src,
+                                       ConstantSize->getZExtValue(), Align, isVol,
+                                       true, DstPtrInfo, SrcPtrInfo);
+    }
+
+    // FIXME: If the memcpy is volatile (isVol), lowering it to a plain libc
+    // memcpy is not guaranteed to be safe. libc memcpys aren't required to
+    // respect volatile, so they may do things like read or write memory
+    // beyond the given memory regions. But fixing this isn't easy, and most
+    // people don't care.
+
+    // Emit a library call.
+    TargetLowering::ArgListTy Args;
+    TargetLowering::ArgListEntry Entry;
+    Entry.Ty = TLI.getDataLayout()->getIntPtrType(*getContext());
+    Entry.Node = Dst; Args.push_back(Entry);
+    Entry.Node = Src; Args.push_back(Entry);
+    Entry.Node = Size; Args.push_back(Entry);
+    // FIXME: pass in DebugLoc
+    TargetLowering::
+        CallLoweringInfo CLI(Chain, Type::getVoidTy(*getContext()),
+                             false, false, false, false, 0,
+                             TLI.getLibcallCallingConv(RTLIB::MEMCPY),
+                             /*isTailCall=*/false,
+                             /*doesNotReturn=*/false, /*isReturnValueUsed=*/false,
+                             getExternalSymbol(TLI.getLibcallName(RTLIB::MEMCPY),
+                                               TLI.getPointerTy()),
+                             Args, *this, dl);
+    std::pair<SDValue,SDValue> CallResult = TLI.LowerCallTo(CLI);
+    errs() << "-D-       Library call emitted\n";    
+
+    return CallResult.second;
+
 }
-
-SDValue SelectionDAG::getMemmove(SDValue Chain, DebugLoc dl, SDValue Dst,
+    SDValue SelectionDAG::getMemmove(SDValue Chain, DebugLoc dl, SDValue Dst,
                                  SDValue Src, SDValue Size,
                                  unsigned Align, bool isVol,
                                  MachinePointerInfo DstPtrInfo,
