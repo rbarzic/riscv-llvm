@@ -6,6 +6,8 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+v=
+#define DEBUG_TYPE "riscv-instr-info"
 
 #include "RISCVRegisterInfo.h"
 #include "RISCVTargetMachine.h"
@@ -178,10 +180,13 @@ RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   uint64_t stackSize = MF.getFrameInfo()->getStackSize();
   int64_t spOffset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
+  int objectSize = MF.getFrameInfo()->getObjectSize(FrameIndex);
 
   DEBUG(errs() << "FrameIndex : " << FrameIndex << "\n"
                << "spOffset   : " << spOffset << "\n"
-               << "stackSize  : " << stackSize << "\n");
+               << "stackSize  : " << stackSize << "\n"
+               << "ObjectSize  : " << objectSize << "\n")
+      ;
 
   eliminateFI(MI, FIOperandNum, FrameIndex, stackSize, spOffset);
 }
@@ -190,7 +195,7 @@ unsigned
 RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
   const RISCVSubtarget &Subtarget = TM.getSubtarget<RISCVSubtarget>();
-  return TFI->hasFP(MF) ? 
-      (Subtarget.isRV64() ? RISCV::fp_64 : RISCV::fp) : 
+  return TFI->hasFP(MF) ?
+      (Subtarget.isRV64() ? RISCV::fp_64 : RISCV::fp) :
       (Subtarget.isRV64() ? RISCV::sp_64 : RISCV::sp);
 }
