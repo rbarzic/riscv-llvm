@@ -9,6 +9,8 @@
 v=
 #define DEBUG_TYPE "riscv-instr-info"
 
+#define DEBUG_TYPE "riscv-register-info"
+
 #include "RISCVRegisterInfo.h"
 #include "RISCVTargetMachine.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -173,7 +175,7 @@ RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                          RegScavenger *RS) const {
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
-
+  DEBUG(dbgs() << "-D- In RISCVRegisterInfo::eliminateFrameIndex\n");
   DEBUG(errs() << "\nFunction : " << MF.getName() << "\n";
         errs() << "<--------->\n" << MI);
 
@@ -188,6 +190,8 @@ RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                << "ObjectSize  : " << objectSize << "\n")
       ;
 
+  MF.getFrameInfo()->print(MF,dbgs());
+  
   eliminateFI(MI, FIOperandNum, FrameIndex, stackSize, spOffset);
 }
 

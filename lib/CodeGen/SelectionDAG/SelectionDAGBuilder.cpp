@@ -6408,9 +6408,12 @@ void SelectionDAGBuilder::visitVACopy(const CallInst &I) {
 std::pair<SDValue, SDValue>
 TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
   // Handle the incoming return values from the call.
+
+  DEBUG(errs() << "-D- In TargetLowering::LowerCallTo ...\n");  
   CLI.Ins.clear();
   SmallVector<EVT, 4> RetTys;
   ComputeValueVTs(*this, CLI.RetTy, RetTys);
+  DEBUG(errs() << "-D-     RetTys.size() " << RetTys.size() << "\n");  
   for (unsigned I = 0, E = RetTys.size(); I != E; ++I) {
     EVT VT = RetTys[I];
     MVT RegisterVT = getRegisterType(CLI.RetTy->getContext(), VT);
@@ -6433,6 +6436,7 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
   CLI.Outs.clear();
   CLI.OutVals.clear();
   ArgListTy &Args = CLI.Args;
+  DEBUG(errs() << "-D-     Args.size() " << Args.size() << "\n");  
   for (unsigned i = 0, e = Args.size(); i != e; ++i) {
     SmallVector<EVT, 4> ValueVTs;
     ComputeValueVTs(*this, Args[i].Ty, ValueVTs);

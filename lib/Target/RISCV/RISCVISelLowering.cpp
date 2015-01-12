@@ -715,28 +715,34 @@ void RISCVTargetLowering::RISCVCC::
 analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Args,
                     bool IsVarArg, bool IsSoftFloat, const SDNode *CallNode,
                     std::vector<ArgListEntry> &FuncArgs) {
+    DEBUG(errs() << "-D- In .RISCVTargetLowering::RISCVCC::analyzeCallOperands...\n");
+    DEBUG(errs() << "-D- IsVarArg  : " <<  IsVarArg << "\n");
+    
   assert((CallConv != CallingConv::Fast || !IsVarArg) &&
          "CallingConv::Fast shouldn't be used for vararg functions.");
 
   unsigned NumOpnds = Args.size();
   llvm::CCAssignFn *FixedFn = fixedArgFn(), *VarFn = varArgFn();
-
+  DEBUG(errs() << "-D- NumOpnds  = " <<  NumOpnds  << "\n");    
   for (unsigned I = 0; I != NumOpnds; ++I) {
     MVT ArgVT = Args[I].VT;
     ISD::ArgFlagsTy ArgFlags = Args[I].Flags;
     bool R;
 
     if (ArgFlags.isByVal()) {
+      DEBUG(errs() << "-D-    I = " <<  I  << " : ByVal\n");       
       handleByValArg(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags);
       continue;
     }
 
-    if (IsVarArg && !Args[I].IsFixed)
+    if (IsVarArg && !Args[I].IsFixed) {
+        DEBUG(errs() << "-D-   IsVarArg && !Args[I].IsFixed : True \n");         
       if(ArgVT.isFloatingPoint()) //Bitconvert floats
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::BCvt, ArgFlags, CCInfo);
       else
         R = VarFn(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, CCInfo);
-    else {
+    } else {
+        DEBUG(errs() << "-D-   IsVarArg && !Args[I].IsFixed : False \n");           
       MVT RegVT = getRegVT(ArgVT, FuncArgs[Args[I].OrigArgIndex].Ty, CallNode,
                            IsSoftFloat);
       R = FixedFn(I, ArgVT, RegVT, CCValAssign::Full, ArgFlags, CCInfo);
@@ -750,12 +756,19 @@ analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Args,
       llvm_unreachable(0);
     }
   }
+  DEBUG(errs() << "-D- Done (RISCVTargetLowering::RISCVCC::analyzeCallOperands)...\n");  
 }
 
 void RISCVTargetLowering::RISCVCC::
 analyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Args,
                        bool IsSoftFloat, Function::const_arg_iterator FuncArg) {
+
+  DEBUG(errs() << "-D- In RISCVISelLowering::analyzeFormalArguments....\n");  
+  
   unsigned NumArgs = Args.size();
+
+
+  DEBUG(errs() << "-D-  Number of arguments : " << NumArgs << "\n");  
   llvm::CCAssignFn *FixedFn;
   if(!IsRV32)
     FixedFn = CC_RISCV64;
@@ -764,15 +777,20 @@ analyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Args,
   unsigned CurArgIdx = 0;
 
   for (unsigned I = 0; I != NumArgs; ++I) {
+    
     MVT ArgVT = Args[I].VT;
+    int vt_int = static_cast<int>(ArgVT.SimpleTy);
+    DEBUG(errs() << "-D-     Argument : " << I << " VT=" << vt_int << "\n");  
     ISD::ArgFlagsTy ArgFlags = Args[I].Flags;
     std::advance(FuncArg, Args[I].OrigArgIndex - CurArgIdx);
     CurArgIdx = Args[I].OrigArgIndex;
 
     if (ArgFlags.isByVal()) {
+      DEBUG(errs() << "-D-             Byval \n");  
       handleByValArg(I, ArgVT, ArgVT, CCValAssign::Full, ArgFlags);
       continue;
     }
+    DEBUG(errs() << "-D-             Not Byval \n");  
 
     if(ArgFlags.isSRet()) {
 
@@ -817,12 +835,19 @@ copyByValRegs(SDValue Chain, DebugLoc DL, std::vector<SDValue> &OutChains,
   unsigned FrameObjSize = std::max(Flags.getByValSize(), RegAreaSize);
   int FrameObjOffset;
 
+  DEBUG(errs() << "-D- In RISCVTargetLowering::copyByValRegs ....\n");
+  DEBUG(errs() << "-D-     ByVal.NumRegs : " <<  ByVal.NumRegs << "\n");
+  DEBUG(errs() << "-D-     CC.regSize : "    <<  CC.regSize() << "\n");
+  
+  
   if (RegAreaSize)
     FrameObjOffset = (int)CC.reservedArgArea() -
       (int)((CC.numIntArgRegs() - ByVal.FirstIdx) * CC.regSize());
   else
     FrameObjOffset = ByVal.Address;
 
+
+   DEBUG(errs() << "-D-  FrameObjOffset   "    <<  FrameObjOffset << "\n");
   // Create frame object.
   EVT PtrTy = getPointerTy();
   int FI = MFI->CreateFixedObject(FrameObjSize, FrameObjOffset, true);
@@ -861,6 +886,11 @@ passByValArg(SDValue Chain, DebugLoc DL,
   unsigned Offset = 0; // Offset in # of bytes from the beginning of struct.
   unsigned RegSize = CC.regSize();
   unsigned Alignment = std::min(Flags.getByValAlign(), RegSize);
+
+
+  DEBUG(errs() << "-D- In RISCVTargetLowering::passByValArg ....\n"); 
+  DEBUG(errs() << "-D-      NumRegs " << ByVal.NumRegs  << "\n"); 
+  
   EVT PtrTy = getPointerTy(), RegTy = MVT::getIntegerVT(RegSize * 8);
 
   if (ByVal.NumRegs) {
@@ -870,6 +900,7 @@ passByValArg(SDValue Chain, DebugLoc DL,
 
     // Copy words to registers.
     for (; I < ByVal.NumRegs - LeftoverBytes; ++I, Offset += RegSize) {
+        DEBUG(errs() << "-D-           Iteration =  " << I << "\n");   
       SDValue LoadPtr = DAG.getNode(ISD::ADD, DL, PtrTy, Arg,
                                     DAG.getConstant(Offset, PtrTy));
       SDValue LoadVal = DAG.getLoad(RegTy, DL, Chain, LoadPtr,
@@ -934,7 +965,9 @@ passByValArg(SDValue Chain, DebugLoc DL,
   }
 
   // Copy remainder of byval arg to it with memcpy.
+  
   unsigned MemCpySize = ByValSize - Offset;
+  DEBUG(errs() << "-D-     MemCpySize  : " << MemCpySize << "\n"); 
   SDValue Src = DAG.getNode(ISD::ADD, DL, PtrTy, Arg,
                             DAG.getConstant(Offset, PtrTy));
   SDValue Dst = DAG.getNode(ISD::ADD, DL, PtrTy, StackPtr,
@@ -953,12 +986,16 @@ RISCVTargetLowering::RISCVCC::handleByValArg(unsigned ValNo, MVT ValVT,
                                            ISD::ArgFlagsTy ArgFlags) {
   assert(ArgFlags.getByValSize() && "Byval argument's size shouldn't be 0.");
 
+  DEBUG(errs() << "-D- In RISCVTargetLowering::RISCVCC::handleByValArg ....\n"); 
+
   struct ByValArgInfo ByVal;
   unsigned RegSize = regSize();
   unsigned ByValSize = RoundUpToAlignment(ArgFlags.getByValSize(), RegSize);
   unsigned Align = std::min(std::max(ArgFlags.getByValAlign(), RegSize),
                             RegSize * 2);
 
+  DEBUG(errs() << "-D-          RegSize = " << RegSize << "\n"); 
+  
   if (useRegsForByval())
     allocateRegs(ByVal, ByValSize, Align, ValVT);
 
@@ -968,6 +1005,7 @@ RISCVTargetLowering::RISCVCC::handleByValArg(unsigned ValNo, MVT ValVT,
   CCInfo.addLoc(CCValAssign::getMem(ValNo, ValVT, ByVal.Address, LocVT,
                                     LocInfo));
   ByValArgs.push_back(ByVal);
+  DEBUG(errs() << "-D- Done  (RISCVTargetLowering::RISCVCC::handleByValArg)\n"); 
 }
 
 unsigned RISCVTargetLowering::RISCVCC::numIntArgRegs() const {
@@ -1059,6 +1097,8 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   RISCVMachineFunctionInfo *RISCVFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
+
+  DEBUG(errs() << "-D- In RISCVISelLowering::LowerFormalArguments for function " << MF.getName() << "\n");
   RISCVFI->setVarArgsFrameIndex(0);
 
   // Used with vargs to acumulate store chains.
@@ -1069,6 +1109,8 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(),
                  getTargetMachine(), ArgLocs, *DAG.getContext());
 
+
+  DEBUG(errs() << "-D-  ArgLocs  \n" << ArgLocs.size() << "\n");  
   RISCVCC RISCVCCInfo(CallConv, IsRV32, CCInfo, Subtarget);
   Function::const_arg_iterator FuncArg =
     DAG.getMachineFunction().getFunction()->arg_begin();
@@ -1090,6 +1132,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
     bool IsRegLoc = VA.isRegLoc();
 
     if (Flags.isByVal()) {
+        DEBUG(errs() << "-D-             -Byval \n");  
       assert(Flags.getByValSize() &&
              "ByVal args of size 0 should have been ignored by front-end.");
       assert(ByValArg != RISCVCCInfo.byval_end());
@@ -1104,9 +1147,11 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
       EVT RegVT = VA.getLocVT();
       unsigned ArgReg = VA.getLocReg();
       const TargetRegisterClass *RC;
-
-      if (RegVT == MVT::i32 || RegVT.getSizeInBits() < 32)//All word and subword values stored in GR32
+      DEBUG(errs() << "-D-             -isRegLoc \n");  
+      if (RegVT == MVT::i32 || RegVT.getSizeInBits() < 32) {//All word and subword values stored in GR32
+          DEBUG(errs() << "-D-             MVT::i32 \n");    
         RC = &RISCV::GR32BitRegClass;
+      }
       else if (RegVT == MVT::i64){
         if(Subtarget.isRV32()){
           //for RV32 store in pair of two GR32
@@ -1130,6 +1175,10 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
             RC = &RISCV::GR64BitRegClass;
           else
             RC = &RISCV::PairGR64BitRegClass;
+      } else if(RegVT == MVT::v8i16) {
+          RC = &RISCV::GRVECBitRegClass;
+          DEBUG(errs() << "-D-             MVT::v8i16 \n");    
+          
       } else
         llvm_unreachable("RegVT not supported by FormalArguments Lowering");
 
@@ -1158,12 +1207,17 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
 
       // sanity check
       assert(VA.isMemLoc());
-
+      DEBUG(errs() << "-D-             isMemLoc \n");  
       // The stack pointer offset is relative to the caller stack frame.
+      // MFI: Machine Frame Info
+      // ValVT is of EVT type (Extended value type)
+      DEBUG(errs() << "-D-             size (byte) : " <<  ValVT.getSizeInBits()/8 << "\n");  
       int FI = MFI->CreateFixedObject(ValVT.getSizeInBits()/8,
                                       VA.getLocMemOffset(), true);
 
       // Create load nodes to retrieve arguments from the stack
+
+      // RB fixme - Where DAG.getload is defined - does this call a RISCV specific function
       SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
       InVals.push_back(DAG.getLoad(ValVT, DL, Chain, FIN,
                                    MachinePointerInfo::getFixedStack(FI),
@@ -1239,6 +1293,8 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   EVT PtrVT = getPointerTy();
 
+  DEBUG(errs() << "-D- In RISCVISelLowering::LowerCall.....\n");
+  
   // RISCV target does not yet support tail call optimization.
   isTailCall = false;
 
@@ -1251,6 +1307,7 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   // Get a count of how many bytes are to be pushed on the stack.
   unsigned NumBytes = ArgCCInfo.getNextStackOffset();
+  DEBUG(errs() << "-D-       NumBytes (to be pushed on stack) = "  << NumBytes <<"\n");
 
   // Mark the start of the call.
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getConstant(NumBytes, PtrVT, true));
@@ -1265,9 +1322,11 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
     CCValAssign &VA = ArgLocs[I];
     SDValue ArgValue = OutVals[I];
     ISD::ArgFlagsTy Flags = Outs[I].Flags;
+    DEBUG(errs() << "-D- Argument # " << I <<"\n");
 
     // ByVal Arg.
     if (Flags.isByVal()) {
+      DEBUG(errs() << "-D- LowerCall : ByVal  \n");  
       assert(Flags.getByValSize() &&
              "ByVal args of size 0 should have been ignored by front-end.");
       assert(ByValArg != RISCVCCInfo.byval_end());
@@ -1283,10 +1342,15 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
       ArgValue = convertValVTToLocVT(DAG, DL, VA, ArgValue);
 
-    if (VA.isRegLoc())
+    if (VA.isRegLoc()) {
+        DEBUG(errs() << "-D- LowerCall : RegLoc  \n");
+        // Arguments that can be passed on register must be kept at
+        // RegsToPass vector  
       // Queue up the argument copies and emit them at the end.
       RegsToPass.push_back(std::make_pair(VA.getLocReg(), ArgValue));
-    else {
+      
+    } else {
+       DEBUG(errs() << "-D- LowerCall : MemLoc  \n");      
       assert(VA.isMemLoc() && "Argument not register or memory");
 
       // Work out the address of the stack slot.  Unpromoted ints and
@@ -1294,6 +1358,8 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
       if (!StackPtr.getNode())
         StackPtr = DAG.getCopyFromReg(Chain, DL, Subtarget.isRV64() ? RISCV::sp_64 : RISCV::sp, PtrVT);
       unsigned Offset = VA.getLocMemOffset();
+
+      DEBUG(errs() << "-D-    Offset : " << Offset << "\n");      
       SDValue Address = DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
                                     DAG.getIntPtrConstant(Offset));
 
@@ -1380,7 +1446,7 @@ RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
     // being returned.
     InVals.push_back(convertLocVTToValVT(DAG, DL, VA, Chain, RetValue));
   }
-
+  DEBUG(errs() << "-D- Done (RISCVISelLowering::LowerCall)\n");
   return Chain;
 }
 

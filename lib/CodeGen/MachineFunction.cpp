@@ -657,6 +657,12 @@ void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
     }
     OS << "\n";
   }
+  
+  OS<<"New dump :"<<"\n";
+  for(std::vector<StackObject>::const_iterator o  = Objects.begin(); o != Objects.end(); o++) {
+      OS << "size=" << o->Size <<"\n";
+  }
+  OS<<"End of new dump :"<<"\n";
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
