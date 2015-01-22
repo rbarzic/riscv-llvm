@@ -6,7 +6,7 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-v=
+
 #define DEBUG_TYPE "riscv-instr-info"
 
 #define DEBUG_TYPE "riscv-register-info"
